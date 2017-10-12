@@ -1,0 +1,44 @@
+heat_template_version: 2013-05-23
+
+description: Simple template to deploy a physical machine
+
+parameters:
+  instance_name:
+    type: string
+    description: VM Name
+    constraints:
+    - allowed_pattern: "[a-zA-Z0-9-]+"
+  key_name:
+    type: string
+    description: Keypair
+    constraints:
+    - allowed_pattern: "[a-zA-Z0-9-]+"
+
+resources:
+  heatinstance:
+    type: OS::Nova::Server
+    properties:
+      name: { get_param: instance_name }
+      key_name: { get_param: key_name }
+      image: 2c0515fa-2598-474a-b667-57500d548cc8
+      flavor: p1.cd6108707
+      metadata: {"cern-services": "false"}
+
+# Depending on the project, more than one physical machine may be available.
+# Note that all phyisical machines' flavor start with a p (for physical)
+#
+# $ openstack flavor list
+# +-------+--------------+--------+------+-----------+-------+-----------+
+# | ID    | Name         |    RAM | Disk | Ephemeral | VCPUs | Is Public |
+# +-------+--------------+--------+------+-----------+-------+-----------+
+# | 27994 | p1.cd6428773 | 131072 |  893 |         0 |    40 | False     |
+# | 32367 | p1.dl6636710 | 131072 |  893 |         0 |    40 | False     |
+# | 48342 | p1.dl6036580 | 131072 | 2793 |         0 |    32 | False     |
+# | 63535 | p1.cd6108707 |  65536 |  893 |         0 |    16 | False     |
+# | 74892 | p1.dl5354724 |  98304 |  277 |         0 |    32 | False     |
+# | 95599 | p1.ca6253967 |  65536 |  744 |         0 |    32 | False     |
+# |  ...  |      ...     |   ...  |  ... |       ... |   ... |  ...      |
+# +-------+--------------+--------+------+-----------+-------+-----------+
+
+# Regarding the image, we would like to use the last Fedora Atomic (stable) version
+# As of today: 2c0515fa-2598-474a-b667-57500d548cc8 | Fedora Atomic 26 [2017-07-25]
