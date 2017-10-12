@@ -20,9 +20,20 @@ parameters:
   flavor:
     type: string
     description: flavor to use in nodes
-    default: p1.cd6108707
+    # default: p1.cd6108707
+    default: m2.large
 
 resources:
+  boot_script:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: ungrouped
+      config: {get_file: boot_script.sh}
+  kube_node_init:
+    type: OS::Heat::MultipartMime
+    properties:
+      parts:
+        - config: {get_resource: boot_script}
   kubemaster:
     type: OS::Nova::Server
     properties:
@@ -44,13 +55,11 @@ resources:
           name:
             list_join:
               - '-'  # LanDB does not like _(underscores)
-              - [{ get_param: 'OS::stack_name' }, 'node', '%index%']
+              - [{ get_param: 'OS::stack_name' }, 'node', '0%index%']
           flavor: {get_param: flavor}
           image: {get_param: image}
           key_name: {get_param: key_name}
           metadata: {"cern-services": "false"}
-          user_data_format: RAW
-          user_data: |
-            #!/bin/bash
-            echo '# test to see user_data script' >> /root/lalaland
-
+          user_data_format: SOFTWARE_CONFIG
+          software_config_transport: POLL_SERVER_HEAT
+          user_data: {get_resource: kube_node_init}
