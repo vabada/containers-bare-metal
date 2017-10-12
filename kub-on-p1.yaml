@@ -1,0 +1,56 @@
+heat_template_version: 2013-05-23
+
+description: >
+  Template to boot a kubernetes cluster with a single master and several nodes.
+  The nodes will be running on bare metal, that is, in physical machines.
+
+parameters:
+  number_of_nodes:
+    type: number
+    description: kubernetes nodes to spawn initially
+    default: 1
+  key_name:
+    type: string
+    description: SSH key to log in to the machines
+  image:
+    type: string
+    description: glance image used to boot the nodes
+    default: 2c0515fa-2598-474a-b667-57500d548cc8  # Fedora Atomic 26 [2017-07-25]
+    # default: 82988771-ed07-4aa6-90c6-16fe3c582cf7  # CC7 - x86_64 [2017-08-09]
+  flavor:
+    type: string
+    description: flavor to use in nodes
+    default: p1.cd6108707
+
+resources:
+  kubemaster:
+    type: OS::Nova::Server
+    properties:
+      name:
+        list_join:
+          - '-'  # LanDB does not like _(underscores)
+          - [{ get_param: 'OS::stack_name' }, 'master']
+      flavor: {get_param: flavor}
+      image: {get_param: image}
+      key_name: {get_param: key_name}
+      metadata: {"cern-services": "false"}
+  kubenode:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: {get_param: number_of_nodes}
+      resource_def:
+        type: OS::Nova::Server
+        properties:
+          name:
+            list_join:
+              - '-'  # LanDB does not like _(underscores)
+              - [{ get_param: 'OS::stack_name' }, 'node', '%index%']
+          flavor: {get_param: flavor}
+          image: {get_param: image}
+          key_name: {get_param: key_name}
+          metadata: {"cern-services": "false"}
+          user_data_format: RAW
+          user_data: |
+            #!/bin/bash
+            echo '# test to see user_data script' >> /root/lalaland
+
