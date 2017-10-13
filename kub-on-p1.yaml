@@ -1,4 +1,4 @@
-heat_template_version: 2013-05-23
+heat_template_version: 2016-10-14
 
 description: >
   Template to boot a kubernetes cluster with a single master and several nodes.
@@ -24,16 +24,25 @@ parameters:
     default: m2.large
 
 resources:
-  boot_script:
+  start_container_agent:
     type: OS::Heat::SoftwareConfig
     properties:
       group: ungrouped
-      config: {get_file: boot_script.sh}
-  kube_node_init:
-    type: OS::Heat::MultipartMime
+      config: {get_file: templates/start-container-agent.sh }
+
+  boot_script:
+    type: OS::Heat::SoftwareConfig
     properties:
-      parts:
-        - config: {get_resource: boot_script}
+      group: script
+      config: {get_file: boot_script.sh}
+  container_agent_deployment:
+    type: OS::Heat::SoftwareDeployment
+    properties:
+      signal_transport: HEAT_SIGNAL
+      config: {get_resource: boot_script}
+      server: {get_resource: kubenode}
+      actions: ['CREATE']
+
   kubemaster:
     type: OS::Nova::Server
     properties:
@@ -62,4 +71,4 @@ resources:
           metadata: {"cern-services": "false"}
           user_data_format: SOFTWARE_CONFIG
           software_config_transport: POLL_SERVER_HEAT
-          user_data: {get_resource: kube_node_init}
+          user_data: {get_resource: start_container_agent}
