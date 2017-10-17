@@ -1,0 +1,4 @@
+#!/bin/bash
+PRIVATE_KEY='ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7a3qRqIBQV358y4Ep5nk5ezxxcQVPBMHxR1bBDApbkK203VY5+KU24xgV08S38T8W3Uy23CNjJTX5xiN0FiAB9SAfwh9LZ9Z58GmeyvELH36tsIgnxa6fvw3zEnfnAWH/P6Fo+s7MsDl70U0Avl9crMl7qaeZPsU/mYhf792eASe1xPz0i/7RF2MwEfi6Ul0QYjy0uv11Hab9BCQ6TjNWB4hN8O4qebP5kxieSjPbaUhoyXuYZBiDMIu4o02gk5zBk+nuSWDS6RHyzjKIO0YCRpfFLNvoPUTONN2ZFSwGKSHSbqBH/a8PQ6rxlL+evv/z0kyucxSdaNmkSEjce8oj'
+echo $PRIVATE_KEY >> /home/fedora/.ssh/authorized_keys
+echo $PRIVATE_KEY >> /root/.ssh/authorized_keys

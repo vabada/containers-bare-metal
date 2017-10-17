@@ -9,9 +9,6 @@ parameters:
     type: number
     description: kubernetes nodes to spawn initially
     default: 1
-  key_name:
-    type: string
-    description: SSH key to log in to the machines
   image:
     type: string
     description: glance image used to boot the nodes
@@ -20,8 +17,7 @@ parameters:
   flavor:
     type: string
     description: flavor to use in nodes
-    # default: p1.cd6108707
-    default: m2.large
+    default: p1.cd6108707
 
 resources:
   start_container_agent:
@@ -29,31 +25,41 @@ resources:
     properties:
       group: ungrouped
       config: {get_file: templates/start-container-agent.sh }
-
-  boot_script:
+  copy_ssh_keys:
     type: OS::Heat::SoftwareConfig
     properties:
       group: script
-      config: {get_file: boot_script.sh}
-  container_agent_deployment:
-    type: OS::Heat::SoftwareDeployment
+      config: {get_file: copy_ssh_keys.sh}
+  kube_node_init:
+    type: OS::Heat::MultipartMime
     properties:
-      signal_transport: HEAT_SIGNAL
-      config: {get_resource: boot_script}
-      server: {get_resource: kubenode}
-      actions: ['CREATE']
+      parts:
+        - config: {get_resource: copy_ssh_keys}
+        - config: {get_resource: start_container_agent}
 
-  kubemaster:
-    type: OS::Nova::Server
-    properties:
-      name:
-        list_join:
-          - '-'  # LanDB does not like _(underscores)
-          - [{ get_param: 'OS::stack_name' }, 'master']
-      flavor: {get_param: flavor}
-      image: {get_param: image}
-      key_name: {get_param: key_name}
-      metadata: {"cern-services": "false"}
+  # boot_script:
+  #   type: OS::Heat::SoftwareConfig
+  #   properties:
+  #     group: script
+  #     config: {get_file: boot_script.sh}
+  # container_agent_deployment:
+  #   type: OS::Heat::SoftwareDeployment
+  #   properties:
+  #     signal_transport: HEAT_SIGNAL
+  #     config: {get_resource: boot_script}
+  #     server: {get_resource: kubenode}
+  #     actions: ['CREATE']
+
+  # kubemaster:
+  #   type: OS::Nova::Server
+  #   properties:
+  #     name:
+  #       list_join:
+  #         - '-'  # LanDB does not like _(underscores)
+  #         - [{ get_param: 'OS::stack_name' }, 'master']
+  #     flavor: {get_param: flavor}
+  #     image: {get_param: image}
+  #     metadata: {"cern-services": "false"}
   kubenode:
     type: OS::Heat::ResourceGroup
     properties:
@@ -67,8 +73,7 @@ resources:
               - [{ get_param: 'OS::stack_name' }, 'node', '0%index%']
           flavor: {get_param: flavor}
           image: {get_param: image}
-          key_name: {get_param: key_name}
           metadata: {"cern-services": "false"}
           user_data_format: SOFTWARE_CONFIG
           software_config_transport: POLL_SERVER_HEAT
-          user_data: {get_resource: start_container_agent}
+          user_data: {get_resource: kube_node_init}
