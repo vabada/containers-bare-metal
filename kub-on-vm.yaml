@@ -1,0 +1,78 @@
+heat_template_version: 2016-10-14
+
+description: >
+  Template to boot a kubernetes cluster with a single master and several nodes.
+  The nodes will be running on bare metal, that is, in physical machines.
+
+parameters:
+  number_of_nodes:
+    type: number
+    description: kubernetes nodes to spawn initially
+    default: 1
+  image:
+    type: string
+    description: glance image used to boot the nodes
+    default: 2c0515fa-2598-474a-b667-57500d548cc8  # Fedora Atomic 26 [2017-07-25]
+  flavor:
+    type: string
+    description: flavor to use in nodes
+    default: m2.large
+
+resources:
+  start_container_agent:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: ungrouped
+      config: {get_file: templates/start-container-agent.sh }
+  copy_ssh_keys:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      config: {get_file: templates/copy_ssh_keys.sh}
+  kube_node_init:
+    type: OS::Heat::MultipartMime
+    properties:
+      parts:
+        - config: {get_resource: copy_ssh_keys}
+        - config: {get_resource: start_container_agent}
+
+  # boot_script:
+  #   type: OS::Heat::SoftwareConfig
+  #   properties:
+  #     group: script
+  #     config: {get_file: templates/boot_script.sh}
+  # container_agent_deployment:
+  #   type: OS::Heat::SoftwareDeployment
+  #   properties:
+  #     signal_transport: HEAT_SIGNAL
+  #     config: {get_resource: boot_script}
+  #     server: {get_resource: kubenode}
+  #     actions: ['CREATE']
+
+  kubemaster:
+    type: OS::Nova::Server
+    properties:
+      name:
+        list_join:
+          - '-'  # LanDB does not like _(underscores)
+          - [{ get_param: 'OS::stack_name' }, 'master']
+      flavor: {get_param: flavor}
+      image: {get_param: image}
+      metadata: {"cern-services": "false"}
+  kubenode:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: {get_param: number_of_nodes}
+      resource_def:
+        type: OS::Nova::Server
+        properties:
+          name:
+            list_join:
+              - '-'  # LanDB does not like _(underscores)
+              - [{ get_param: 'OS::stack_name' }, 'node', '0%index%']
+          flavor: {get_param: flavor}
+          image: {get_param: image}
+          metadata: {"cern-services": "false"}
+          user_data_format: SOFTWARE_CONFIG
+          software_config_transport: POLL_SERVER_HEAT
+          user_data: {get_resource: kube_node_init}
