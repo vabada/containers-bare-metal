@@ -16,23 +16,33 @@ parameters:
   flavor:
     type: string
     description: flavor to use in nodes
-    default: m2.large
+    default: m2.small
 
 resources:
+
+  install_cern_certs:
+    type: "OS::Heat::SoftwareConfig"
+    properties:
+      group: ungrouped
+      config: {get_file: templates/install-cern-certs.sh}
+
   start_container_agent:
     type: OS::Heat::SoftwareConfig
     properties:
       group: ungrouped
       config: {get_file: templates/start-container-agent.sh }
+
   copy_ssh_keys:
     type: OS::Heat::SoftwareConfig
     properties:
       group: script
       config: {get_file: templates/copy_ssh_keys.sh}
+
   kube_node_init:
     type: OS::Heat::MultipartMime
     properties:
       parts:
+        - config: {get_resource: install_cern_certs}
         - config: {get_resource: copy_ssh_keys}
         - config: {get_resource: start_container_agent}
 
@@ -41,12 +51,13 @@ resources:
   #   properties:
   #     group: script
   #     config: {get_file: templates/boot_script.sh}
+
   # container_agent_deployment:
   #   type: OS::Heat::SoftwareDeployment
   #   properties:
   #     signal_transport: HEAT_SIGNAL
   #     config: {get_resource: boot_script}
-  #     server: {get_resource: kubenode}
+  #     server: {get_resource: kubemaster}
   #     actions: ['CREATE']
 
   kubemaster:
@@ -55,10 +66,15 @@ resources:
       name:
         list_join:
           - '-'  # LanDB does not like _(underscores)
-          - [{ get_param: 'OS::stack_name' }, 'master']
+          - [{ get_param: 'OS::stack_name' }, 'vm']
       flavor: {get_param: flavor}
       image: {get_param: image}
+      key_name: dabadaba-lxplus-2
       metadata: {"cern-services": "false"}
+      user_data_format: SOFTWARE_CONFIG
+      software_config_transport: POLL_SERVER_HEAT
+      user_data: {get_resource: kube_node_init}
+
   kubenode:
     type: OS::Heat::ResourceGroup
     properties:
@@ -69,9 +85,10 @@ resources:
           name:
             list_join:
               - '-'  # LanDB does not like _(underscores)
-              - [{ get_param: 'OS::stack_name' }, 'node', '0%index%']
+              - [{ get_param: 'OS::stack_name' }, 'vmnode', '0%index%']
           flavor: {get_param: flavor}
           image: {get_param: image}
+          key_name: dabadaba-lxplus-2
           metadata: {"cern-services": "false"}
           user_data_format: SOFTWARE_CONFIG
           software_config_transport: POLL_SERVER_HEAT
