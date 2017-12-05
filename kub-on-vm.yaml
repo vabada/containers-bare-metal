@@ -69,7 +69,6 @@ resources:
           - [{ get_param: 'OS::stack_name' }, 'vm']
       flavor: {get_param: flavor}
       image: {get_param: image}
-      key_name: dabadaba-lxplus-2
       metadata: {"cern-services": "false"}
       user_data_format: SOFTWARE_CONFIG
       software_config_transport: POLL_SERVER_HEAT
@@ -88,7 +87,6 @@ resources:
               - [{ get_param: 'OS::stack_name' }, 'vmnode', '0%index%']
           flavor: {get_param: flavor}
           image: {get_param: image}
-          key_name: dabadaba-lxplus-2
           metadata: {"cern-services": "false"}
           user_data_format: SOFTWARE_CONFIG
           software_config_transport: POLL_SERVER_HEAT
