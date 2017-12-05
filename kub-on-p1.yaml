@@ -5,38 +5,48 @@ description: >
   The nodes will be running on bare metal, that is, in physical machines.
 
 parameters:
+
   number_of_nodes:
     type: number
     description: kubernetes nodes to spawn initially
     default: 1
+
   image:
     type: string
     description: glance image used to boot the nodes
     default: 55e22657-74e5-46d9-ba28-47980986b42c  # Fedora Atomic 26 [2017-07-25] - staging
+
   flavor:
     type: string
     description: flavor to use in nodes
     default: p1.dl6036580
-  key_name:
-    type: string
-    description: SSH key to log in to the machines
-    default: ""
+
 
 resources:
+
+  install_cern_certs:
+    type: "OS::Heat::SoftwareConfig"
+    properties:
+      group: ungrouped
+      config: {get_file: templates/install-cern-certs.sh}
+
   start_container_agent:
     type: OS::Heat::SoftwareConfig
     properties:
       group: ungrouped
       config: {get_file: templates/start-container-agent.sh }
+
   copy_ssh_keys:
     type: OS::Heat::SoftwareConfig
     properties:
       group: script
       config: {get_file: templates/copy_ssh_keys.sh}
+
   kube_node_init:
     type: OS::Heat::MultipartMime
     properties:
       parts:
+        - config: {get_resource: install_cern_certs}
         - config: {get_resource: copy_ssh_keys}
         - config: {get_resource: start_container_agent}
 
@@ -60,11 +70,14 @@ resources:
       name:
         list_join:
           - '-'  # LanDB does not like _(underscores)
-          - [{ get_param: 'OS::stack_name' }, 'master']
+          - [{ get_param: 'OS::stack_name' }, 'bmmaster']
       flavor: {get_param: flavor}
       image: {get_param: image}
-      key_name: {get_param: key_name}
       metadata: {"cern-services": "false"}
+      user_data_format: SOFTWARE_CONFIG
+      software_config_transport: POLL_SERVER_HEAT
+      user_data: {get_resource: kube_node_init}
+
   kubenode:
     type: OS::Heat::ResourceGroup
     properties:
@@ -75,10 +88,9 @@ resources:
           name:
             list_join:
               - '-'  # LanDB does not like _(underscores)
-              - [{ get_param: 'OS::stack_name' }, 'node', '0%index%']
+              - [{ get_param: 'OS::stack_name' }, 'bmnode', '0%index%']
           flavor: {get_param: flavor}
           image: {get_param: image}
-          key_name: {get_param: key_name}
           metadata: {"cern-services": "false"}
           user_data_format: SOFTWARE_CONFIG
           software_config_transport: POLL_SERVER_HEAT
